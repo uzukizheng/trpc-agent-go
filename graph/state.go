@@ -103,8 +103,8 @@ func (s *StateSchema) AddField(name string, field StateField) *StateSchema {
 
 // ApplyUpdate applies a state update using the defined reducers.
 func (s *StateSchema) ApplyUpdate(currentState State, update State) State {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	result := currentState.Clone()
 	for key, updateValue := range update {
 		field, exists := s.Fields[key]
