@@ -112,10 +112,17 @@ func copyMap(rv reflect.Value, visited map[uintptr]any) any {
 	if cached, ok := visited[ptr]; ok {
 		return cached
 	}
-	newMap := reflect.MakeMapWithSize(rv.Type(), rv.Len())
+	// Get all keys first to avoid concurrent map iteration issues
+	keys := rv.MapKeys()
+	newMap := reflect.MakeMapWithSize(rv.Type(), len(keys))
 	visited[ptr] = newMap.Interface()
-	for _, mk := range rv.MapKeys() {
+	// Iterate over the snapshot of keys
+	for _, mk := range keys {
 		mv := rv.MapIndex(mk)
+		// Check if the key still exists (it might have been deleted concurrently)
+		if !mv.IsValid() {
+			continue
+		}
 		newMap.SetMapIndex(mk,
 			reflect.ValueOf(deepCopyReflect(mv, visited)))
 	}
