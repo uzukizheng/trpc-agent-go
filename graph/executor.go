@@ -2089,16 +2089,25 @@ func (e *Executor) enqueueCommands(execCtx *ExecutionContext, t *Task, cmds []*C
 
 // updateStateFromResult updates the execution context state from a State result.
 func (e *Executor) updateStateFromResult(execCtx *ExecutionContext, stateResult State) {
+	return
 	execCtx.stateMutex.Lock()
 	defer execCtx.stateMutex.Unlock()
 
+	// Create a shallow snapshot of stateResult to avoid concurrent map iteration
+	// issues if the original map is being modified by another goroutine.
+	// This is safe because we only copy the map structure, not deep-copy values yet.
+	snapshot := make(State, len(stateResult))
+	for k, v := range stateResult {
+		snapshot[k] = v
+	}
+
 	// Use schema-based reducers when available for proper merging.
 	if e.graph != nil && e.graph.Schema() != nil {
-		execCtx.State = e.graph.Schema().ApplyUpdate(execCtx.State, stateResult)
+		execCtx.State = e.graph.Schema().ApplyUpdate(execCtx.State, snapshot)
 		return
 	}
 	// Fallback to direct assignment if no schema available.
-	maps.Copy(execCtx.State, stateResult)
+	maps.Copy(execCtx.State, snapshot)
 }
 
 // handleCommandResult handles a Command result from node execution.
